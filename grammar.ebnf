@@ -1,0 +1,47 @@
+program := { decl } { stmt } ;
+
+decl := type name { "," name } ";" ;
+type := "int" ;
+
+stmt := ";" | "{" { stmt } "}" | 
+       name "=" read ";" | 
+       write "(" expr ")" ";" |
+       name "=" expr ";" |
+       while "(" cond ")" stmt |
+       if "(" cond ")" stmt [ else stmt ] ;
+write := "write" ;
+read := "read" "(" ")" ;
+while := "while" ;
+if := "if" ;
+else := "else" ;
+
+expr := expr'low ;
+expr'low := expr'fin |
+            expr'low binop'low expr'low |
+            expr'hi ;
+binop'low := "+" | "-" ;
+expr'hi := expr'hi binop'hi expr'hi | unop expr'hi |
+           "(" expr'low ")" |
+           expr'fin ;
+binop'hi := "*" | "/" | "%" ;
+expr'fin = number | name ;
+unop := "-" ;
+
+cond := cond'low ;
+cond'low := cond'fin |
+            cond'low bbinop'low cond'low | cond'hi ;
+cond'hi := cond'fin | cond'hi bbinop'hi cond'hi |
+           "(" cond'low ")" |
+           bunop cond'hi ;
+cond'fin = "true" | "false" | expr comp expr ;
+bbinop'low := "||" ;
+bbinop'hi := "&&" ;
+comp := "==" | "!=" | "<=" | "<" | ">=" | ">" ;
+bunop := "!" ;
+
+letter = "$" | "_" | "a" ... "z" | "A" ... "Z" ;
+name := letter { letter | digit } ;
+
+digitNotZero = "1" ... "9" ;
+digit = "0" | digitNotZero ;
+number := "0" | digitNotZero { digit } ;

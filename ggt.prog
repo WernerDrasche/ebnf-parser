@@ -1,0 +1,11 @@
+int a, b;
+int tmp;
+a = read();
+b = read();
+while (a != 0) {
+    b = b % a;
+    tmp = a;
+    a = b;
+    b = tmp;
+}
+write(b);
