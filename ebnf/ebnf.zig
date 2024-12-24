@@ -163,35 +163,39 @@ pub const Rules = struct {
     }
 
     fn handleCanonical(self: *Rules) !void {
+        var new_rules = ArrayList(Rule).init(self.allocator);
+        var canonical = self.rules.items.len;
         for (self.rules.items) |*rule| {
             if (mem.indexOf(u8, rule.name, "'")) |idx| {
                 const target = rule.name[0..idx];
                 const result = try self.names.getOrPut(target);
                 rule.canonical = if (result.found_existing) result.value_ptr.* else blk: {
-                    const canonical = self.rules.items.len;
                     result.value_ptr.* = canonical;
-                    try self.rules.append(.{
+                    try new_rules.append(.{
                         .name = target,
                         .is_tmp = rule.is_tmp,
                         .generated_by = null,
                         .canonical = canonical,
                         .definition = .{ .terminal = "" },
                     });
-                    break :blk canonical;
+                    const old = canonical;
+                    canonical += 1;
+                    break :blk old;
                 };
             }
         }
+        try self.rules.appendSlice(try new_rules.toOwnedSlice());
     }
 
     ///this flattens the syntax tree
     pub fn parse(self: Rules, program: []const u8, rule: usize) !Node {
         const definition = self.rules.items[rule].definition;
         var node = try Node.parse(program, definition, self, self.allocator);
+        const consumed = node.consumed;
         const branches = try node.flatten(self, self.allocator);
-        var consumed: usize = 0;
         for (branches) |*n| {
+            //TODO: flatten or canonicalize creates consumed off by one error
             n.* = n.canonicalize(self, self.allocator);
-            consumed += n.consumed;
         }
         const application = Application{ .rule = rule, .branches = branches };
         return .{ .consumed = consumed, .t = .{ .application = application } };
@@ -767,7 +771,7 @@ pub const Node = struct {
         return a.branches[0].t.terminal.content;
     }
 
-    pub fn get(self: *Node, idx: usize) *Node {
+    pub fn at(self: *Node, idx: usize) *Node {
         return &self.t.application.branches[idx];
     }
 
@@ -805,6 +809,10 @@ pub const Node = struct {
             if (n.is(query)) return true;
         }
         return false;
+    }
+
+    pub fn get(self: *Node, query: anytype) ?*Node {
+        return self.iter(query).next();
     }
 
     pub fn free(self: Node, allocator: Allocator) void {
